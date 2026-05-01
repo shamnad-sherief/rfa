@@ -41,9 +41,9 @@ fn main() {
                     let line = line.expect("Failed to read line");
                     if let Some(first_word) = line.split_whitespace().next() {
                         if first_word.eq_ignore_ascii_case(&name) {
-                            // dont panic here
                             if let Some(secret) = line.split_whitespace().nth(1) {
-                                println!("{}: {}", first_word, secret);
+                                println!("{}", secret);
+                                break;
                             }
                         }
                     }
