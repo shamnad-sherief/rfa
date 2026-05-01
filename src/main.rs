@@ -1,20 +1,11 @@
+use std::env;
 use std::fs::OpenOptions;
-use std::io;
 use std::io::{BufRead, BufReader, Write};
 
 fn main() {
-    let mut cmd = String::new();
+    let cmd: Vec<String> = env::args().collect();
 
-    io::stdin()
-        .read_line(&mut cmd)
-        .expect("Couldnt read command");
-
-    match parse_command(
-        &cmd.trim()
-            .split_whitespace()
-            .map(|s| s.to_string())
-            .collect::<Vec<String>>(),
-    ) {
+    match parse_command(cmd) {
         // TODO
         Ok(cmd) => match cmd {
             Command::Add { name, secret } => {
@@ -67,8 +58,8 @@ fn main() {
     }
 }
 
-fn parse_command(args: &[String]) -> Result<Command, String> {
-    let cmd = args.get(0);
+fn parse_command(args: Vec<String>) -> Result<Command, String> {
+    let cmd = args.get(1);
     match cmd {
         None => Err("Provide at least one argument".into()),
         Some(cmd) => {
