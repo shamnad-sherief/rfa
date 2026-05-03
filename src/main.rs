@@ -12,80 +12,111 @@ fn main() {
         // TODO
         Ok(cmd) => match cmd {
             Command::Add { name, secret } => {
-                let mut file = OpenOptions::new()
+                let file = OpenOptions::new()
                     .append(true)
                     .write(true)
                     .create(true)
-                    .open("2fa")
-                    .expect("Couldnt handle the file");
-                match writeln!(file, "{} {}", name, secret) {
-                    Ok(_) => {}
-                    Err(_) => {
-                        println!("Couldnt write to file")
-                    }
+                    .open("2fa");
+                match file {
+                    Ok(mut file) => match writeln!(file, "{} {}", name, secret) {
+                        Ok(_) => println!("Added account successfully"),
+                        Err(_) => println!("Couldnt add account"),
+                    },
+                    Err(_) => println!("Couldnt open file"),
                 }
             }
             Command::Generate { name } => {
-                let file = OpenOptions::new()
-                    .read(true)
-                    .open("2fa")
-                    .expect("File not found");
-                let reader = BufReader::new(file);
-                for line in reader.lines() {
-                    let line = line.expect("Failed to read line");
-                    if let Some(first_word) = line.split_whitespace().next() {
-                        if first_word.eq_ignore_ascii_case(&name) {
-                            if let Some(secret) = line.split_whitespace().nth(1) {
-                                let dec = match decode(Alphabet::Rfc4648 { padding: true }, secret)
-                                {
-                                    Some(v) => v,
-                                    None => {
-                                        eprintln!("Base 32 decoding failed for {}", name);
-                                        continue;
+                let file = OpenOptions::new().read(true).open("2fa");
+                match file {
+                    Ok(file) => {
+                        let reader = BufReader::new(file);
+                        for line in reader.lines() {
+                            let line = match line {
+                                Ok(l) => l,
+                                Err(_) => {
+                                    eprintln!("Failed to read line");
+                                    continue;
+                                }
+                            };
+                            let mut parts = line.split_whitespace();
+                            if let Some(first_word) = parts.next() {
+                                if first_word.eq_ignore_ascii_case(&name) {
+                                    if let Some(secret) = parts.next() {
+                                        let dec = match decode(
+                                            Alphabet::Rfc4648 { padding: true },
+                                            secret,
+                                        ) {
+                                            Some(v) => v,
+                                            None => {
+                                                eprintln!("Base 32 decoding failed for {}", name);
+                                                continue;
+                                            }
+                                        };
+                                        let current_time = match std::time::SystemTime::now()
+                                            .duration_since(std::time::UNIX_EPOCH)
+                                        {
+                                            Ok(d) => d,
+                                            Err(_) => {
+                                                eprintln!("Time went backwards");
+                                                continue;
+                                            }
+                                        }
+                                        .as_secs()
+                                            as u64
+                                            / 30;
+
+                                        let mut hasher: Hmac<Sha1> =
+                                            match Mac::new_from_slice(dec.as_ref()) {
+                                                Ok(h) => h,
+                                                Err(_) => {
+                                                    eprintln!("HMAC creation failed for {}", name);
+                                                    continue;
+                                                }
+                                            };
+                                        hasher.update(current_time.to_be_bytes().as_ref());
+                                        let result = hasher.finalize();
+                                        let hash = result.into_bytes();
+
+                                        // Step 1: dynamic offset
+                                        let offset = (hash[hash.len() - 1] & 0x0f) as usize;
+
+                                        // Step 2: 4-byte slice
+                                        let binary = ((hash[offset] as u32 & 0x7f) << 24)
+                                            | ((hash[offset + 1] as u32) << 16)
+                                            | ((hash[offset + 2] as u32) << 8)
+                                            | (hash[offset + 3] as u32);
+
+                                        // Step 3: mod to get OTP
+                                        let otp = binary % 1_000_000;
+                                        println!("{:06}", otp);
+                                        break;
                                     }
-                                };
-                                let current_time = (std::time::SystemTime::now()
-                                    .duration_since(std::time::UNIX_EPOCH)
-                                    .expect("Time went backwards")
-                                    .as_secs()
-                                    as u64)
-                                    / 30;
-
-                                let mut hasher: Hmac<Sha1> = Mac::new_from_slice(dec.as_ref())
-                                    .expect("HMAC algoritms can take keys of any size");
-                                hasher.update(current_time.to_be_bytes().as_ref());
-                                let result = hasher.finalize();
-                                let hash = result.into_bytes();
-
-                                // Step 1: dynamic offset
-                                let offset = (hash[19] & 0x0f) as usize;
-
-                                // Step 2: 4-byte slice
-                                let binary = ((hash[offset] as u32 & 0x7f) << 24)
-                                    | ((hash[offset + 1] as u32) << 16)
-                                    | ((hash[offset + 2] as u32) << 8)
-                                    | (hash[offset + 3] as u32);
-
-                                // Step 3: mod to get OTP
-                                let otp = binary % 1_000_000;
-                                println!("{}", otp);
-                                break;
+                                }
                             }
                         }
                     }
+                    Err(_) => println!("Couldnt open file"),
                 }
             }
             Command::List => {
-                let file = OpenOptions::new()
-                    .read(true)
-                    .open("2fa")
-                    .expect("File not found");
-                let reader = BufReader::new(file);
-                for line in reader.lines() {
-                    let line = line.expect("Failed to read line");
-                    if let Some(first_word) = line.split_whitespace().next() {
-                        println!("{}", first_word);
+                let file = OpenOptions::new().read(true).open("2fa");
+                match file {
+                    Ok(file) => {
+                        let reader = BufReader::new(file);
+                        for line in reader.lines() {
+                            let line = match line {
+                                Ok(l) => l,
+                                Err(_) => {
+                                    eprintln!("Failed to read line");
+                                    continue;
+                                }
+                            };
+                            if let Some(first_word) = line.split_whitespace().next() {
+                                println!("{}", first_word);
+                            }
+                        }
                     }
+                    Err(_) => println!("Couldnt open file"),
                 }
             }
         },
@@ -101,14 +132,14 @@ fn parse_command(args: Vec<String>) -> Result<Command, String> {
             if cmd.eq_ignore_ascii_case("list") {
                 Ok(Command::List)
             } else if cmd.eq_ignore_ascii_case("add") {
-                if args.len() < 3 {
+                if args.len() < 4 {
                     return Err("add requires <name> <secret>".into());
                 }
                 let name = args[2].to_string();
                 let secret = args[3].to_string();
                 Ok(Command::Add { name, secret })
             } else if cmd.eq_ignore_ascii_case("generate") {
-                if args.len() < 2 {
+                if args.len() < 3 {
                     return Err("generate requires <name>".into());
                 }
                 let name = args[2].to_string();
@@ -118,11 +149,6 @@ fn parse_command(args: Vec<String>) -> Result<Command, String> {
             }
         }
     }
-}
-
-struct Account {
-    name: String,
-    secret: String,
 }
 
 enum Command {
