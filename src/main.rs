@@ -9,20 +9,21 @@ fn main() {
     let cmd: Vec<String> = env::args().collect();
 
     match parse_command(cmd) {
-        // TODO
         Ok(cmd) => match cmd {
-            Command::Add { name, secret } => {
+            Command::Add(account) => {
                 let file = OpenOptions::new()
                     .append(true)
                     .write(true)
                     .create(true)
                     .open("2fa");
-                match file {
-                    Ok(mut file) => match writeln!(file, "{} {}", name, secret) {
-                        Ok(_) => println!("Added account successfully"),
-                        Err(_) => println!("Couldnt add account"),
-                    },
-                    Err(_) => println!("Couldnt open file"),
+                if let Ok(mut file) = file {
+                    if let Ok(_) = writeln!(file, "{} {}", account.name, account.secret) {
+                        println!("Added account successfully");
+                    } else {
+                        eprintln!("Couldnt add account");
+                    }
+                } else {
+                    eprintln!("Couldnt open file");
                 }
             }
             Command::Generate { name } => {
@@ -95,7 +96,7 @@ fn main() {
                             }
                         }
                     }
-                    Err(_) => println!("Couldnt open file"),
+                    Err(_) => eprintln!("Couldnt open file"),
                 }
             }
             Command::List => {
@@ -116,7 +117,7 @@ fn main() {
                             }
                         }
                     }
-                    Err(_) => println!("Couldnt open file"),
+                    Err(_) => eprintln!("Couldnt open file"),
                 }
             }
         },
@@ -137,7 +138,7 @@ fn parse_command(args: Vec<String>) -> Result<Command, String> {
                 }
                 let name = args[2].to_string();
                 let secret = args[3].to_string();
-                Ok(Command::Add { name, secret })
+                Ok(Command::Add(Account { name, secret }))
             } else if cmd.eq_ignore_ascii_case("generate") {
                 if args.len() < 3 {
                     return Err("generate requires <name>".into());
@@ -151,8 +152,13 @@ fn parse_command(args: Vec<String>) -> Result<Command, String> {
     }
 }
 
+struct Account {
+    name: String,
+    secret: String,
+}
+
 enum Command {
-    Add { name: String, secret: String },
+    Add(Account),
     Generate { name: String },
     List,
 }
