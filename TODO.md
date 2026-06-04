@@ -1,13 +1,20 @@
 # Future Improvements Roadmap
 
-
-- [ ] **Multi-Algorithm Support**: Store and support SHA-256 and SHA-512 alongside the default SHA-1.
-- [ ] **Custom Digit Counts**: Allow accounts to specify 8-digit OTPs instead of the default 6.
-- [ ] **URI Parsing**: Add a command to import accounts by pasting `otpauth://` URI strings.
-- [ ] **Visual Countdown**: Display a real-time progress bar or numeric countdown showing when the current code expires.
-- [ ] **Dashboard View**: A command to display current OTPs for all saved accounts in a single table.
-- [ ] **Fuzzy Search**: Support partial name matching for the `generate` command.
-- [ ] **QR Export**: Render terminal-based QR codes to easily export accounts back to mobile apps.
-- [ ] **Account Management**: Commands to safely update or delete existing accounts without manual file editing.
-- [ ] **Encryption at Rest**: Implement file encryption using a master password (e.g., using Argon2 and AES-256-GCM).
-- [ ] **Memory Protection**: Automatically zero-out secret bytes in memory after calculation.
+* [ ] **Account Deletion**: Remove saved accounts using a dedicated `remove` command.
+* [ ] **Duplicate Protection**: Prevent adding multiple accounts with the same name.
+* [ ] **Account Updates**: Update account names or secrets without manually editing files.
+* [ ] **Generate All Codes**: Display OTPs for all saved accounts in a single command.
+* [ ] **Dashboard View**: Show account names, OTPs, and remaining validity time in a table.
+* [ ] **Countdown Timer**: Display seconds remaining before the current OTP expires.
+* [ ] **Multi-Algorithm Support**: Support SHA-256 and SHA-512 alongside the default SHA-1.
+* [ ] **Custom Digit Counts**: Allow accounts to specify 6-digit or 8-digit OTPs.S
+* [ ] **JSON Storage**: Migrate from plain text storage to a structured JSON format.
+* [ ] **Fuzzy Search**: Support partial account name matching for the `generate` command.
+* [ ] **URI Parsing**: Import accounts from `otpauth://` URI strings.
+* [ ] **QR Export**: Generate terminal QR codes for exporting accounts to authenticator apps.
+* [ ] **Home Directory Storage**: Store account data in a platform-appropriate user directory.
+* [ ] **Configuration File**: Support custom settings such as default digits and storage paths.
+* [ ] **Encryption at Rest**: Protect stored secrets using a master password and modern encryption.
+* [ ] **Memory Protection**: Automatically clear sensitive secret data from memory after use.
+* [ ] **Clipboard Support**: Copy generated OTPs directly to the system clipboard.
+* [ ] **Backup & Restore**: Export and import account databases for migration and backups.
