@@ -4,6 +4,7 @@ use sha1::Sha1;
 use std::env;
 use std::fs::OpenOptions;
 use std::io::{BufRead, BufReader, Write};
+use std::path::{Path, PathBuf};
 
 fn main() {
     let cmd: Vec<String> = env::args().collect();
@@ -15,7 +16,7 @@ fn main() {
                     .append(true)
                     .write(true)
                     .create(true)
-                    .open("2fa");
+                    .open(get_file_path());
                 if let Ok(mut file) = file {
                     if let Ok(_) = writeln!(file, "{} {}", account.name, account.secret) {
                         println!("Added account successfully");
@@ -27,7 +28,7 @@ fn main() {
                 }
             }
             Command::Generate { name } => {
-                let file = OpenOptions::new().read(true).open("2fa");
+                let file = OpenOptions::new().read(true).open(get_file_path());
                 match file {
                     Ok(file) => {
                         let reader = BufReader::new(file);
@@ -100,7 +101,7 @@ fn main() {
                 }
             }
             Command::List => {
-                let file = OpenOptions::new().read(true).open("2fa");
+                let file = OpenOptions::new().read(true).open(get_file_path());
                 match file {
                     Ok(file) => {
                         let reader = BufReader::new(file);
@@ -149,6 +150,16 @@ fn parse_command(args: Vec<String>) -> Result<Command, String> {
                 Err("Unknown command".into())
             }
         }
+    }
+}
+
+fn get_file_path() -> PathBuf {
+    let home = env::home_dir();
+    if let Some(source) = home {
+        let home = Path::new(&source);
+        home.join(".rfa")
+    } else {
+        Path::new(".rfa").to_path_buf()
     }
 }
 
