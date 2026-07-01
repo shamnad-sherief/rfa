@@ -1,10 +1,11 @@
-use base32::{Alphabet, decode};
-use hmac::{Hmac, Mac};
-use sha1::Sha1;
 use std::env;
 use std::fs::OpenOptions;
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
+
+use crate::totp::generate_totp;
+
+mod totp;
 
 fn main() {
     let cmd: Vec<String> = env::args().collect();
@@ -44,53 +45,16 @@ fn main() {
                             if let Some(first_word) = parts.next() {
                                 if first_word.eq_ignore_ascii_case(&name) {
                                     if let Some(secret) = parts.next() {
-                                        let dec = match decode(
-                                            Alphabet::Rfc4648 { padding: true },
-                                            secret,
-                                        ) {
-                                            Some(v) => v,
-                                            None => {
-                                                eprintln!("Base 32 decoding failed for {}", name);
-                                                continue;
-                                            }
-                                        };
-                                        let current_time = match std::time::SystemTime::now()
+                                        let timesec = std::time::SystemTime::now()
                                             .duration_since(std::time::UNIX_EPOCH)
-                                        {
-                                            Ok(d) => d,
-                                            Err(_) => {
-                                                eprintln!("Time went backwards");
-                                                continue;
-                                            }
+                                            .expect("System time went backwards")
+                                            .as_secs()
+                                            as u64;
+                                        let otp = generate_totp(secret, timesec);
+                                        match otp {
+                                            Ok(otp) => println!("{}", otp),
+                                            Err(_) => println!("Failed to generate TOTP"),
                                         }
-                                        .as_secs()
-                                            as u64
-                                            / 30;
-
-                                        let mut hasher: Hmac<Sha1> =
-                                            match Mac::new_from_slice(dec.as_ref()) {
-                                                Ok(h) => h,
-                                                Err(_) => {
-                                                    eprintln!("HMAC creation failed for {}", name);
-                                                    continue;
-                                                }
-                                            };
-                                        hasher.update(current_time.to_be_bytes().as_ref());
-                                        let result = hasher.finalize();
-                                        let hash = result.into_bytes();
-
-                                        // Step 1: dynamic offset
-                                        let offset = (hash[hash.len() - 1] & 0x0f) as usize;
-
-                                        // Step 2: 4-byte slice
-                                        let binary = ((hash[offset] as u32 & 0x7f) << 24)
-                                            | ((hash[offset + 1] as u32) << 16)
-                                            | ((hash[offset + 2] as u32) << 8)
-                                            | (hash[offset + 3] as u32);
-
-                                        // Step 3: mod to get OTP
-                                        let otp = binary % 1_000_000;
-                                        println!("{:06}", otp);
                                         break;
                                     }
                                 }
