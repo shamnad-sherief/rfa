@@ -13,6 +13,10 @@ fn main() {
     match parse_command(cmd) {
         Ok(cmd) => match cmd {
             Command::Add(account) => {
+                if account_exists(&account.name) {
+                    eprintln!("Account already exists");
+                    return;
+                }
                 let file = OpenOptions::new()
                     .append(true)
                     .write(true)
@@ -115,6 +119,31 @@ fn parse_command(args: Vec<String>) -> Result<Command, String> {
             }
         }
     }
+}
+
+fn account_exists(name: &str) -> bool {
+    let file = OpenOptions::new().read(true).open(get_file_path());
+    match file {
+        Ok(file) => {
+            let reader = BufReader::new(file);
+            for line in reader.lines() {
+                let line = match line {
+                    Ok(l) => l,
+                    Err(_) => {
+                        eprintln!("Failed to read line");
+                        continue;
+                    }
+                };
+                if let Some(first_word) = line.split_whitespace().next() {
+                    if first_word.eq_ignore_ascii_case(name) {
+                        return true;
+                    }
+                }
+            }
+        }
+        Err(_) => eprintln!("Couldnt open file"),
+    }
+    false
 }
 
 fn get_file_path() -> PathBuf {
