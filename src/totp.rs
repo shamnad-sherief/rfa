@@ -27,6 +27,7 @@ pub fn generate_totp(secret: &str, time_sec: u64) -> Result<String, TotpError> {
     Ok(format!("{:06}", otp))
 }
 
+#[derive(Debug)]
 pub enum TotpError {
     Base32DecodeFailed,
     SystemTimeBackwards,
@@ -55,7 +56,6 @@ mod tests {
         let time = 1111111111; // A fixed epoch timestamp
 
         let code = generate_totp(secret, time);
-
-        assert!(code.is_ok());
+        assert_eq!(code.unwrap(), "050471");
     }
 }
