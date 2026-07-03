@@ -140,10 +140,10 @@ fn account_exists(name: &str) -> bool {
                     }
                 }
             }
+            return false;
         }
-        Err(_) => eprintln!("Couldnt open file"),
+        Err(_) => return false,
     }
-    false
 }
 
 fn get_file_path() -> PathBuf {
