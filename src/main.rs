@@ -59,11 +59,12 @@ fn main() {
                                             Ok(otp) => println!("{}", otp),
                                             Err(_) => println!("Failed to generate TOTP"),
                                         }
-                                        break;
+                                        return;
                                     }
                                 }
                             }
                         }
+                        eprintln!("Account not found");
                     }
                     Err(_) => eprintln!("Couldnt open file"),
                 }
@@ -114,8 +115,11 @@ fn parse_command(args: Vec<String>) -> Result<Command, String> {
                 }
                 let name = args[2].to_string();
                 Ok(Command::Generate { name })
+            } else if args.len() == 2 {
+                let name = args[1].to_string();
+                Ok(Command::Generate { name })
             } else {
-                Err("Unknown command".into())
+                Err("Invalid command".into())
             }
         }
     }
