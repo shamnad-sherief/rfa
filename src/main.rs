@@ -1,3 +1,4 @@
+use anyhow::Context;
 use std::env;
 use std::fs::OpenOptions;
 use std::io::{BufRead, BufReader, Write};
@@ -7,111 +8,107 @@ use crate::totp::generate_totp;
 
 mod totp;
 
-fn main() {
+fn main() -> anyhow::Result<()> {
     let cmd: Vec<String> = env::args().collect();
 
     match parse_command(cmd) {
         Ok(cmd) => match cmd {
             Command::Add(account) => {
                 if account_exists(&account.name) {
-                    eprintln!("Account already exists");
-                    return;
+                    anyhow::bail!("Account {} already exist", &account.name);
                 }
-                let file = OpenOptions::new()
+                let mut file = OpenOptions::new()
                     .append(true)
                     .write(true)
                     .create(true)
-                    .open(get_file_path());
-                if let Ok(mut file) = file {
-                    if let Ok(_) = writeln!(file, "{} {}", account.name, account.secret) {
-                        println!("Added account successfully");
-                    } else {
-                        eprintln!("Couldnt add account");
-                    }
-                } else {
-                    eprintln!("Couldnt open file");
-                }
+                    .open(get_file_path())
+                    .context("Failed to open the db")?;
+
+                writeln!(file, "{} {}", account.name, account.secret)
+                    .context("Couldnt add account to db")?;
+                println!("Added account successfully");
+                Ok(())
             }
             Command::Generate { name } => {
-                let file = OpenOptions::new().read(true).open(get_file_path());
-                match file {
-                    Ok(file) => {
-                        let reader = BufReader::new(file);
-                        for line in reader.lines() {
-                            let line = match line {
-                                Ok(l) => l,
-                                Err(_) => {
-                                    eprintln!("Failed to read line");
-                                    continue;
+                let file = OpenOptions::new()
+                    .read(true)
+                    .open(get_file_path())
+                    .context("Failed to open the db")?;
+
+                let reader = BufReader::new(file);
+                for line in reader.lines() {
+                    let line = match line {
+                        Ok(l) => l,
+                        Err(_) => {
+                            eprintln!("Failed to read line");
+                            continue;
+                        }
+                    };
+                    let mut parts = line.split_whitespace();
+                    if let Some(first_word) = parts.next() {
+                        if first_word.eq_ignore_ascii_case(&name) {
+                            if let Some(secret) = parts.next() {
+                                let timesec = std::time::SystemTime::now()
+                                    .duration_since(std::time::UNIX_EPOCH)
+                                    .expect("System time went backwards")
+                                    .as_secs() as u64;
+                                let otp = generate_totp(secret, timesec);
+                                match otp {
+                                    Ok(otp) => println!("{}", otp),
+                                    Err(_) => println!("Failed to generate TOTP"),
                                 }
-                            };
-                            let mut parts = line.split_whitespace();
-                            if let Some(first_word) = parts.next() {
-                                if first_word.eq_ignore_ascii_case(&name) {
-                                    if let Some(secret) = parts.next() {
-                                        let timesec = std::time::SystemTime::now()
-                                            .duration_since(std::time::UNIX_EPOCH)
-                                            .expect("System time went backwards")
-                                            .as_secs()
-                                            as u64;
-                                        let otp = generate_totp(secret, timesec);
-                                        match otp {
-                                            Ok(otp) => println!("{}", otp),
-                                            Err(_) => println!("Failed to generate TOTP"),
-                                        }
-                                        return;
-                                    }
-                                }
+                                return Ok(());
                             }
                         }
-                        eprintln!("Account not found");
                     }
-                    Err(_) => eprintln!("Couldnt open file"),
                 }
+                println!("Account not found");
+                Ok(())
             }
             Command::List => {
-                let file = OpenOptions::new().read(true).open(get_file_path());
-                match file {
-                    Ok(file) => {
-                        let reader = BufReader::new(file);
-                        for line in reader.lines() {
-                            let line = match line {
-                                Ok(l) => l,
-                                Err(_) => {
-                                    eprintln!("Failed to read line");
-                                    continue;
-                                }
-                            };
-                            if let Some(first_word) = line.split_whitespace().next() {
-                                println!("{}", first_word);
-                            }
+                let file = OpenOptions::new()
+                    .read(true)
+                    .open(get_file_path())
+                    .context("Couldnt open db")?;
+
+                let reader = BufReader::new(file);
+                for line in reader.lines() {
+                    let line = match line {
+                        Ok(l) => l,
+                        Err(_) => {
+                            eprintln!("Failed to read line");
+                            continue;
                         }
+                    };
+                    if let Some(first_word) = line.split_whitespace().next() {
+                        println!("{}", first_word);
                     }
-                    Err(_) => eprintln!("Couldnt open file"),
                 }
+
+                Ok(())
             }
         },
-        Err(_) => println!("Unknown command"),
+        Err(e) => anyhow::bail!(e),
     }
 }
 
-fn parse_command(args: Vec<String>) -> Result<Command, String> {
+fn parse_command(args: Vec<String>) -> anyhow::Result<Command> {
     let cmd = args.get(1);
     match cmd {
-        None => Err("Provide at least one argument".into()),
+        None => anyhow::bail!("Provide at least one argumen"),
         Some(cmd) => {
             if cmd.eq_ignore_ascii_case("list") {
                 Ok(Command::List)
             } else if cmd.eq_ignore_ascii_case("add") {
                 if args.len() < 4 {
-                    return Err("add requires <name> <secret>".into());
+                    anyhow::bail!("add requires <name> <secret>")
                 }
                 let name = args[2].to_string();
                 let secret = args[3].to_string();
                 Ok(Command::Add(Account { name, secret }))
             } else if cmd.eq_ignore_ascii_case("generate") {
                 if args.len() < 3 {
-                    return Err("generate requires <name>".into());
+                    anyhow::bail!("generate requires <name>")
                 }
                 let name = args[2].to_string();
                 Ok(Command::Generate { name })
@@ -119,7 +116,7 @@ fn parse_command(args: Vec<String>) -> Result<Command, String> {
                 let name = args[1].to_string();
                 Ok(Command::Generate { name })
             } else {
-                Err("Invalid command".into())
+                anyhow::bail!("Invalid command")
             }
         }
     }
