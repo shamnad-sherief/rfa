@@ -97,7 +97,7 @@ fn main() -> anyhow::Result<()> {
 fn parse_command(args: Vec<String>) -> anyhow::Result<Command> {
     let cmd = args.get(1);
     match cmd {
-        None => anyhow::bail!("Provide at least one argumen"),
+        None => Ok(Command::List),
         Some(cmd) => {
             if cmd.eq_ignore_ascii_case("list") {
                 Ok(Command::List)
