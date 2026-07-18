@@ -62,6 +62,7 @@ fn main() -> anyhow::Result<()> {
             Command::List => {
                 let file = OpenOptions::new()
                     .read(true)
+                    .write(true)
                     .create(true)
                     .open(get_file_path())
                     .context("Couldnt open db")?;
