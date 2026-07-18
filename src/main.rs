@@ -151,6 +151,9 @@ fn account_exists(name: &str) -> bool {
 }
 
 fn get_file_path() -> PathBuf {
+    if cfg!(debug_assertions) {
+        return Path::new(".rfa-dev").to_path_buf();
+    }
     let home = env::home_dir();
     if let Some(source) = home {
         let home = Path::new(&source);
