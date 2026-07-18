@@ -1,4 +1,6 @@
-#[derive(Debug)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Account {
     /// The service name: e.g., "github", "aws", "google"
     pub service: String,
@@ -32,7 +34,7 @@ impl Account {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 enum Algorithm {
     Sha1,
     Sha256,
