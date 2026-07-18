@@ -1,7 +1,8 @@
 # Future Improvements Roadmap
 
 * [ ] **Account Deletion**: Remove saved accounts using a dedicated `remove` command.
-* [ ] **Duplicate Protection**: Prevent adding multiple accounts with the same name.
+* [x] **Duplicate Protection**: Prevent adding multiple accounts with the same name.
+* [ ] **Graceful Duplicate Handling**: If a user tries to add a duplicate service, require them to explicitly provide an `account_id` to disambiguate.
 * [ ] **Account Updates**: Update account names or secrets without manually editing files.
 * [ ] **Generate All Codes**: Display OTPs for all saved accounts in a single command.
 * [ ] **Dashboard View**: Show account names, OTPs, and remaining validity time in a table.
