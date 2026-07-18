@@ -1,11 +1,9 @@
-use anyhow::Context;
-use std::env;
-use std::fs::OpenOptions;
-use std::io::{BufRead, BufReader, Write};
-use std::path::{Path, PathBuf};
-
 use crate::models::Account;
 use crate::totp::generate_totp;
+use anyhow::{Context, Error};
+use std::env;
+use std::fs::OpenOptions;
+use std::path::{Path, PathBuf};
 
 mod models;
 mod totp;
@@ -16,18 +14,22 @@ fn main() -> anyhow::Result<()> {
     match parse_command(cmd) {
         Ok(cmd) => match cmd {
             Command::Add(account) => {
-                if account_exists(&account.service) {
+                if account_exists(&account.service)? {
                     anyhow::bail!("Account {} already exist", &account.service);
                 }
-                let mut file = OpenOptions::new()
-                    .append(true)
+                let file = OpenOptions::new()
                     .write(true)
                     .create(true)
                     .open(get_file_path())
                     .context("Failed to open the db")?;
 
-                writeln!(file, "{} {}", account.service, account.secret)
+                let mut csv_writer = csv::WriterBuilder::new()
+                    .has_headers(false)
+                    .from_writer(&file);
+                csv_writer
+                    .serialize(account)
                     .context("Couldnt add account to db")?;
+                csv_writer.flush()?;
                 println!("Added account successfully");
                 Ok(())
             }
@@ -38,58 +40,43 @@ fn main() -> anyhow::Result<()> {
                     .write(true)
                     .open(get_file_path())
                     .context("Failed to open the db")?;
-
-                let reader = BufReader::new(file);
-                for line in reader.lines() {
-                    let line = match line {
-                        Ok(l) => l,
-                        Err(_) => {
-                            eprintln!("Failed to read line");
-                            continue;
-                        }
-                    };
-                    let mut parts = line.split_whitespace();
-                    if let Some(first_word) = parts.next() {
-                        if first_word.eq_ignore_ascii_case(&name) {
-                            if let Some(secret) = parts.next() {
-                                let timesec = std::time::SystemTime::now()
-                                    .duration_since(std::time::UNIX_EPOCH)
-                                    .expect("System time went backwards")
-                                    .as_secs() as u64;
-                                let otp = generate_totp(secret, timesec);
-                                match otp {
-                                    Ok(otp) => println!("{}", otp),
-                                    Err(_) => println!("Failed to generate TOTP"),
-                                }
-                                return Ok(());
-                            }
-                        }
+                let mut csv_reader = csv::ReaderBuilder::new()
+                    .has_headers(false)
+                    .from_reader(&file);
+                for result in csv_reader.deserialize() {
+                    let account: Account = result.context("Failed to parse from DB")?;
+                    if account.service.eq_ignore_ascii_case(&name) {
+                        let timesec = std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .expect("System time went backwards")
+                            .as_secs() as u64;
+                        let otp = generate_totp(&account.secret, timesec, Some(account.period))?;
+                        println!("{}", otp);
+                        return Ok(());
                     }
                 }
+
                 println!("Account not found");
                 Ok(())
             }
             Command::List => {
                 let file = OpenOptions::new()
                     .read(true)
-                    .write(true)
                     .create(true)
                     .open(get_file_path())
                     .context("Couldnt open db")?;
-
-                let reader = BufReader::new(file);
                 // TODO: if the file is empty then show "No account found"
-                for line in reader.lines() {
-                    let line = match line {
-                        Ok(l) => l,
-                        Err(_) => {
-                            eprintln!("Failed to read line");
-                            continue;
-                        }
-                    };
-                    if let Some(first_word) = line.split_whitespace().next() {
-                        println!("{}", first_word);
-                    }
+                let mut csv_reader = csv::ReaderBuilder::new()
+                    .has_headers(false)
+                    .from_reader(&file);
+                for result in csv_reader.deserialize() {
+                    let account: Account = result.context("Failed to parse from DB")?;
+                    let timesec = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .expect("System time went backwards")
+                        .as_secs() as u64;
+                    let otp = generate_totp(&account.secret, timesec, Some(account.period))?;
+                    println!("{} {}", account.service, otp);
                 }
 
                 Ok(())
@@ -130,29 +117,24 @@ fn parse_command(args: Vec<String>) -> anyhow::Result<Command> {
     }
 }
 
-fn account_exists(name: &str) -> bool {
-    let file = OpenOptions::new().read(true).open(get_file_path());
-    match file {
-        Ok(file) => {
-            let reader = BufReader::new(file);
-            for line in reader.lines() {
-                let line = match line {
-                    Ok(l) => l,
-                    Err(_) => {
-                        eprintln!("Failed to read line");
-                        continue;
-                    }
-                };
-                if let Some(first_word) = line.split_whitespace().next() {
-                    if first_word.eq_ignore_ascii_case(name) {
-                        return true;
-                    }
-                }
-            }
-            return false;
+fn account_exists(name: &str) -> Result<bool, Error> {
+    let file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .open(get_file_path())
+        .context("Failed to open the db")?;
+
+    let mut csv_reader = csv::ReaderBuilder::new()
+        .has_headers(false)
+        .from_reader(&file);
+    for result in csv_reader.deserialize() {
+        let account: Account = result.context("Failed to parse from DB")?;
+        if account.service.eq_ignore_ascii_case(&name) {
+            return Ok(true);
         }
-        Err(_) => return false,
     }
+    Ok(false)
 }
 
 fn get_file_path() -> PathBuf {

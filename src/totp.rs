@@ -2,10 +2,14 @@ use base32::{Alphabet, decode};
 use hmac::{Hmac, Mac};
 use sha1::Sha1;
 
-pub fn generate_totp(secret: &str, time_sec: u64) -> Result<String, TotpError> {
+pub fn generate_totp(
+    secret: &str,
+    time_sec: u64,
+    interval: Option<u64>,
+) -> Result<String, TotpError> {
     let dec =
         decode(Alphabet::Rfc4648 { padding: true }, secret).ok_or(TotpError::Base32DecodeFailed)?;
-    let current_time = time_sec / 30;
+    let current_time = time_sec / interval.unwrap_or(30);
 
     let mut hasher: Hmac<Sha1> = Mac::new_from_slice(dec.as_ref())?;
     hasher.update(current_time.to_be_bytes().as_ref());
@@ -55,7 +59,29 @@ mod tests {
         let secret = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"; // A standard test key
         let time = 1111111111; // A fixed epoch timestamp
 
-        let code = generate_totp(secret, time);
+        let code = generate_totp(secret, time, Some(30));
         assert_eq!(code.unwrap(), "050471");
     }
 }
+
+impl std::fmt::Display for TotpError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self {
+            TotpError::Base32DecodeFailed => {
+                write!(
+                    f,
+                    "Failed to decode the secret key. Ensure it is a valid Base32 string without spaces."
+                )
+            }
+            TotpError::SystemTimeBackwards => write!(
+                f,
+                "System time went backwards! Your system clock is set before the Unix Epoch (1970)"
+            ),
+            TotpError::HmacInvalidKeyLength => {
+                write!(f, "The secret key has an invalid length.")
+            }
+        }
+    }
+}
+
+impl std::error::Error for TotpError {}
