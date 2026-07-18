@@ -9,3 +9,5 @@ hmac = "0.12"
 sha1 = "0.10"
 anyhow = "1.0"
 serde = {version = "1.0.228", features = ["derive"]}
+csv = "1.3"
+

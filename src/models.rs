@@ -25,6 +25,7 @@ impl Account {
     pub fn new(name: String, secret: String) -> Self {
         Self {
             service: name,
+            // TODO: accept account_id from cmd args
             account_id: None,
             secret: secret,
             algorithm: Algorithm::Sha1,
