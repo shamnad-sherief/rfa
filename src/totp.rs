@@ -7,8 +7,11 @@ pub fn generate_totp(
     time_sec: u64,
     interval: Option<u64>,
 ) -> Result<String, TotpError> {
-    let dec =
-        decode(Alphabet::Rfc4648 { padding: true }, secret).ok_or(TotpError::Base32DecodeFailed)?;
+    let dec = decode(
+        Alphabet::Rfc4648 { padding: true },
+        &secret.to_ascii_uppercase(),
+    )
+    .ok_or(TotpError::Base32DecodeFailed)?;
     let current_time = time_sec / interval.unwrap_or(30);
 
     let mut hasher: Hmac<Sha1> = Mac::new_from_slice(dec.as_ref())?;
