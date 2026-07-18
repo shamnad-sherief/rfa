@@ -14,8 +14,8 @@ fn main() -> anyhow::Result<()> {
     match parse_command(cmd) {
         Ok(cmd) => match cmd {
             Command::Add(account) => {
-                if account_exists(&account.name) {
-                    anyhow::bail!("Account {} already exist", &account.name);
+                if account_exists(&account.service) {
+                    anyhow::bail!("Account {} already exist", &account.service);
                 }
                 let mut file = OpenOptions::new()
                     .append(true)
@@ -24,7 +24,7 @@ fn main() -> anyhow::Result<()> {
                     .open(get_file_path())
                     .context("Failed to open the db")?;
 
-                writeln!(file, "{} {}", account.name, account.secret)
+                writeln!(file, "{} {}", account.service, account.secret)
                     .context("Couldnt add account to db")?;
                 println!("Added account successfully");
                 Ok(())
@@ -105,7 +105,8 @@ fn parse_command(args: Vec<String>) -> anyhow::Result<Command> {
                 }
                 let name = args[2].to_string();
                 let secret = args[3].to_string();
-                Ok(Command::Add(Account { name, secret }))
+                let account = Account::new(name, secret);
+                Ok(Command::Add(account))
             } else if cmd.eq_ignore_ascii_case("generate") {
                 if args.len() < 3 {
                     anyhow::bail!("generate requires <name>")
@@ -157,9 +158,45 @@ fn get_file_path() -> PathBuf {
     }
 }
 
+#[derive(Debug)]
 struct Account {
-    name: String,
+    /// The service name: e.g., "github", "aws", "google"
+    service: String,
+
+    /// The user identifier: e.g., "minato@example.com" or "personal" (Optional)
+    account_id: Option<String>,
+
+    /// The Base32 encoded secret key
     secret: String,
+
+    /// The hash algorithm used (defaults to SHA1 for 99% of services)
+    algorithm: Algorithm,
+
+    /// How many digits the generated code should be (usually 6, sometimes 8)
+    digits: u8,
+
+    /// How many seconds the code is valid for (almost always 30)
+    period: u64,
+}
+
+impl Account {
+    fn new(name: String, secret: String) -> Self {
+        Self {
+            service: name,
+            account_id: None,
+            secret: secret,
+            algorithm: Algorithm::Sha1,
+            digits: 6,
+            period: 30,
+        }
+    }
+}
+
+#[derive(Debug)]
+enum Algorithm {
+    Sha1,
+    Sha256,
+    Sha512,
 }
 
 enum Command {
