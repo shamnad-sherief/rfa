@@ -36,7 +36,7 @@ impl Account {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-enum Algorithm {
+pub enum Algorithm {
     Sha1,
     Sha256,
     Sha512,

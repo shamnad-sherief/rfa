@@ -3,6 +3,7 @@ use crate::totp::generate_totp;
 use anyhow::{Context, Error};
 use std::env;
 use std::fs::OpenOptions;
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
 mod models;
@@ -17,11 +18,24 @@ fn main() -> anyhow::Result<()> {
                 if account_exists(&account.service)? {
                     anyhow::bail!("Account {} already exist", &account.service);
                 }
-                let file = OpenOptions::new()
+                let mut file = OpenOptions::new()
                     .write(true)
                     .create(true)
+                    .append(true)
+                    .read(true)
                     .open(get_file_path())
                     .context("Failed to open the db")?;
+
+                // check the cursor is on new line
+                if file.metadata()?.len() > 0 {
+                    file.seek(SeekFrom::End(-1))?;
+
+                    let mut last_byte = [0; 1];
+                    file.read_exact(&mut last_byte)?;
+                    if last_byte[0] != b'\n' {
+                        file.write_all(b"\n")?;
+                    }
+                }
 
                 let mut csv_writer = csv::WriterBuilder::new()
                     .has_headers(false)
@@ -30,7 +44,7 @@ fn main() -> anyhow::Result<()> {
                     .serialize(account)
                     .context("Couldnt add account to db")?;
                 csv_writer.flush()?;
-                println!("Added account successfully");
+                print!("Added account successfully");
                 Ok(())
             }
             Command::Generate { name } => {
@@ -51,12 +65,12 @@ fn main() -> anyhow::Result<()> {
                             .expect("System time went backwards")
                             .as_secs() as u64;
                         let otp = generate_totp(&account.secret, timesec, Some(account.period))?;
-                        println!("{}", otp);
+                        print!("{}", otp);
                         return Ok(());
                     }
                 }
 
-                println!("Account not found");
+                print!("Account not found");
                 Ok(())
             }
             Command::List => {
@@ -77,7 +91,7 @@ fn main() -> anyhow::Result<()> {
                         .expect("System time went backwards")
                         .as_secs() as u64;
                     let otp = generate_totp(&account.secret, timesec, Some(account.period))?;
-                    println!("{} {}", account.service, otp);
+                    print!("{} {}", account.service, otp);
                 }
 
                 Ok(())
