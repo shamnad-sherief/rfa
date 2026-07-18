@@ -34,6 +34,8 @@ fn main() -> anyhow::Result<()> {
             Command::Generate { name } => {
                 let file = OpenOptions::new()
                     .read(true)
+                    .create(true)
+                    .write(true)
                     .open(get_file_path())
                     .context("Failed to open the db")?;
 
@@ -70,10 +72,13 @@ fn main() -> anyhow::Result<()> {
             Command::List => {
                 let file = OpenOptions::new()
                     .read(true)
+                    .write(true)
+                    .create(true)
                     .open(get_file_path())
                     .context("Couldnt open db")?;
 
                 let reader = BufReader::new(file);
+                // TODO: if the file is empty then show "No account found"
                 for line in reader.lines() {
                     let line = match line {
                         Ok(l) => l,
