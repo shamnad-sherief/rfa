@@ -80,18 +80,28 @@ fn main() -> anyhow::Result<()> {
                     .create(true)
                     .open(get_file_path())
                     .context("Couldnt open db")?;
-                // TODO: if the file is empty then show "No account found"
                 let mut csv_reader = csv::ReaderBuilder::new()
                     .has_headers(false)
                     .from_reader(&file);
-                for result in csv_reader.deserialize() {
+                let mut iter = csv_reader.deserialize().peekable();
+                if iter.peek().is_none() {
+                    print!(
+                        "Your vault is empty! Get started by adding your first account: `rfa add <name> <secret>`"
+                    );
+                    return Ok(());
+                }
+                while let Some(result) = iter.next() {
                     let account: Account = result.context("Failed to parse from DB")?;
                     let timesec = std::time::SystemTime::now()
                         .duration_since(std::time::UNIX_EPOCH)
                         .expect("System time went backwards")
                         .as_secs() as u64;
                     let otp = generate_totp(&account.secret, timesec, Some(account.period))?;
-                    print!("{} {}", account.service, otp);
+                    if iter.peek().is_some() {
+                        println!("{} {}", account.service, otp);
+                    } else {
+                        print!("{} {}", account.service, otp);
+                    }
                 }
 
                 Ok(())
