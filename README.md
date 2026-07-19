@@ -4,6 +4,10 @@ A blazing fast, minimalist command-line tool for managing and generating 2FA (TO
 
 No electron apps, no cloud syncing, no bloated UI. Just your terminal and your TOTP tokens.
 
+
+![rfa demo](assets/demo.GIF)
+
+
 ## Installation
 
 You can install `rfa` directly from crates.io (the package is named `r2fa`):
