@@ -5,7 +5,7 @@ A blazing fast, minimalist command-line tool for managing and generating 2FA (TO
 No electron apps, no cloud syncing, no bloated UI. Just your terminal and your TOTP tokens.
 
 
-![rfa demo](assets/demo.GIF)
+<img src="assets/demo.GIF" alt="rfa demo">
 
 
 ## Installation
