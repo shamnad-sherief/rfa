@@ -131,6 +131,47 @@ fn main() -> anyhow::Result<()> {
 
             Ok(())
         }
+        Some(Command::Remove { name }) => {
+            let file = OpenOptions::new()
+                .read(true)
+                .write(true)
+                .create(true)
+                .open(get_file_path())
+                .context("Couldnt open db")?;
+
+            let temp_file = OpenOptions::new()
+                .read(true)
+                .write(true)
+                .create(true)
+                .open(format!("{}.tmp", get_file_path().display()))
+                .context("Couldnt open db")?;
+
+            let mut csv_reader = csv::ReaderBuilder::new()
+                .has_headers(false)
+                .from_reader(&file);
+
+            let mut csv_writer = csv::WriterBuilder::new()
+                .has_headers(false)
+                .from_writer(&temp_file);
+
+            for result in csv_reader.deserialize() {
+                let account: Account = result.context("Failed to parse from db")?;
+                if account.service.eq_ignore_ascii_case(&name) {
+                    continue;
+                }
+                csv_writer.serialize(account).context("")?
+            }
+            csv_writer.flush()?;
+
+            std::fs::remove_file(get_file_path()).context("Failed to remove the db")?;
+
+            std::fs::rename(
+                format!("{}.tmp", get_file_path().display()),
+                get_file_path(),
+            )?;
+
+            Ok(())
+        }
     }
 }
 
@@ -188,4 +229,7 @@ enum Command {
 
     /// List all saved accounts and codes
     List,
+
+    /// Remove an account
+    Remove { name: String },
 }
