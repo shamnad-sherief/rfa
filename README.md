@@ -40,5 +40,12 @@ To see all the accounts you have saved:
 rfa list
 ```
 
+### 4. Remove an account
+To remove an account from your vault:
+```bash
+rfa remove <account_name>
+```
+*Example:* `rfa remove github`
+
 ## License
 MIT

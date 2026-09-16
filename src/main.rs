@@ -36,8 +36,8 @@ fn main() -> anyhow::Result<()> {
         Some(Command::Add {
             name,
             secret,
-            account_id,
-            digits,
+            account_id: _,
+            digits: _,
         }) => {
             if account_exists(&name)? {
                 anyhow::bail!("Account {} already exist", &name);
