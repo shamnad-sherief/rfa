@@ -69,7 +69,7 @@ fn main() -> anyhow::Result<()> {
                 .serialize(account)
                 .context("Couldnt add account to db")?;
             csv_writer.flush()?;
-            print!("Added account successfully");
+            println!("Added account successfully");
             Ok(())
         }
         Some(Command::Generate { name }) => {
@@ -90,12 +90,12 @@ fn main() -> anyhow::Result<()> {
                         .expect("System time went backwards")
                         .as_secs() as u64;
                     let otp = generate_totp(&account.secret, timesec, Some(account.period))?;
-                    print!("{}", otp);
+                    println!("{}", otp);
                     return Ok(());
                 }
             }
 
-            print!("Account not found");
+            println!("Account not found");
             Ok(())
         }
         Some(Command::List) | None => {
@@ -110,7 +110,7 @@ fn main() -> anyhow::Result<()> {
                 .from_reader(&file);
             let mut iter = csv_reader.deserialize().peekable();
             if iter.peek().is_none() {
-                print!(
+                println!(
                     "Your vault is empty! Get started by adding your first account: `rfa add <name> <secret>`"
                 );
                 return Ok(());
@@ -122,11 +122,7 @@ fn main() -> anyhow::Result<()> {
                     .expect("System time went backwards")
                     .as_secs() as u64;
                 let otp = generate_totp(&account.secret, timesec, Some(account.period))?;
-                if iter.peek().is_some() {
-                    println!("{} {}", account.service, otp);
-                } else {
-                    print!("{} {}", account.service, otp);
-                }
+                println!("{} {}", account.service, otp);
             }
 
             Ok(())
