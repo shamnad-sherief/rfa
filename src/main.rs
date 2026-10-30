@@ -2,10 +2,10 @@ use crate::models::Account;
 use crate::totp::generate_totp;
 use anyhow::{Context, Error, Ok};
 use clap::{Parser, Subcommand};
-use std::env;
 use std::fs::OpenOptions;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
+use std::{env, io};
 
 mod models;
 mod totp;
@@ -42,6 +42,15 @@ fn main() -> anyhow::Result<()> {
             if account_exists(&name)? {
                 anyhow::bail!("Account {} already exist", &name);
             }
+            let secret = if let Some(value) = secret {
+                value
+            } else {
+                let mut input = String::new();
+                print!("Enter you secret :");
+                std::io::stdout().flush()?;
+                std::io::stdin().read_line(&mut input)?;
+                input.trim().to_string()
+            };
             let account = Account::new(name, secret);
             let mut file = OpenOptions::new()
                 .write(true)
@@ -211,7 +220,7 @@ enum Command {
         /// Name of the service (e.g. github)
         name: String,
         /// Base32 secret key
-        secret: String,
+        secret: Option<String>,
         /// Optional account identifier
         #[arg(short, long)]
         account_id: Option<String>,
