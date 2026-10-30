@@ -2,10 +2,10 @@ use crate::models::Account;
 use crate::totp::generate_totp;
 use anyhow::{Context, Error, Ok};
 use clap::{Parser, Subcommand};
+use std::env;
 use std::fs::OpenOptions;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
-use std::{env, io};
 
 mod models;
 mod totp;
@@ -169,11 +169,12 @@ fn main() -> anyhow::Result<()> {
             csv_writer.flush()?;
 
             std::fs::remove_file(get_file_path()).context("Failed to remove the db")?;
-
             std::fs::rename(
                 format!("{}.tmp", get_file_path().display()),
                 get_file_path(),
             )?;
+
+            println!("Account removed successfully");
 
             Ok(())
         }
@@ -236,5 +237,6 @@ enum Command {
     List,
 
     /// Remove an account
+    #[command(alias = "rm")]
     Remove { name: String },
 }
